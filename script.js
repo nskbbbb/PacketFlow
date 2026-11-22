@@ -210,3 +210,80 @@ if(typeof document!='undefined'){
  PG.forEach(([id,l])=>$('#nav').append(h('a',{href:'#'+id,id:'n-'+id},l)));
  $('#qs').onclick=()=>{if(!LAB.act&&!dev(C.src))fixC();queue()};
  addEventListener('hashchange',render);render()}
+
+/* ===== Built-in learning guide and contextual explanations ===== */
+(function(){
+ if(typeof document==='undefined')return;
+ const pageHelp={
+ dashboard:["Your network at a glance","This page summarizes the devices and links in your topology, plus the results of your simulated traffic. Click a metric card to open the related tool. Run the demo to send a sample HTTP exchange from a PC to the web server."],
+ studio:["Build and edit the network","Add devices with the buttons, then choose Cable and click two devices to connect them. Drag devices to arrange the diagram. Select a device to edit its name, interfaces and routes; select a cable to change its latency or disconnect it. Red dashed cables are down."],
+ config:["Set device addressing and behavior","Choose a device from the table. Configure its IPv4 address and subnet mask on each interface. PCs and servers also need a default gateway to reach other subnets. Routers use static routes; firewalls also have filtering rules."],
+ console:["Send traffic through your simulated network","Choose a source and destination, then select a protocol. Send test packet starts the exchange. Pause and Resume control the event queue; Step advances one event at a time; Reset clears packet history and counters. The diagram animates packet movement."],
+ analyzer:["Inspect individual simulated packets","Select a packet row to inspect its Ethernet, IP and transport details, the path it took and why it was delivered or dropped. The protocol buttons filter the list. These are generated simulation records, not captured network traffic."],
+ routing:["Understand how a destination is reached","The routing table lists connected networks, static routes and the default route. Longest-prefix lookup chooses the most specific matching network. The path finder compares the shortest cable path with actual hop-by-hop routing."],
+ monitor:["Read simulated network performance","Delivery and loss are calculated from packets in this simulation. Latency is the sum of configured cable delays. Throughput is estimated from simulated bytes and simulation time. These are not measurements of your real Wi-Fi or internet connection."],
+ lab:["Practice troubleshooting","Load a challenge to replace the current topology with a deliberately broken sample. Use the hint, fix the problem in Network Studio or Device Configuration, then press Check. Restore my project returns to the topology saved before the challenge."],
+ docs:["Learn the simulator's model","Read how forwarding works, which protocols are scripted and what the simulator does not model. Use the Help button on any page for a short explanation of its controls and terminology."],
+ settings:["Control the simulation and your project","Change animation speed, clear packet statistics, save or load this browser's local project, restore the sample topology, or export the topology as JSON. A saved project is stored in this browser, not uploaded to GitHub."]
+ };
+ const terms=[
+ ["PC / end host","A computer at the edge of a network. It sends and receives traffic but does not forward packets for other devices."],
+ ["Switch","A Layer 2 device that connects devices on the same local network and forwards Ethernet frames."],
+ ["Router","A Layer 3 device that connects different IP networks and forwards packets using its routing table."],
+ ["Firewall","A device that applies allow/deny rules to simulated traffic. This model is stateless and uses first-match rules."],
+ ["Server","A host that represents a service endpoint, such as the sample web server."],
+ ["Interface (eth0)","A network port on a device. It can have an IP address, subnet mask and MAC address."],
+ ["IPv4 address","The logical address used to identify a device interface, for example 192.168.1.10."],
+ ["Subnet mask","Defines which part of an IPv4 address identifies its local network. 255.255.255.0 is commonly written /24."],
+ ["Default gateway","The router address a PC or server sends traffic to when the destination is outside its local subnet."],
+ ["MAC address","A Layer 2 hardware-style address used to deliver an Ethernet frame across one local link."],
+ ["Cable / link","A simulated physical connection between two devices. A down link blocks traffic along that connection."],
+ ["Latency (ms)","A configured delay on a cable, measured in milliseconds. The simulator adds these delays as packets travel."],
+ ["Packet","A unit of simulated network data with source, destination, protocol and header information."],
+ ["Protocol","The rules used by a type of network communication, such as ICMP, TCP, UDP, ARP, DNS or HTTP."],
+ ["ICMP / ping","A request-and-reply test commonly used to check whether an IP destination can be reached."],
+ ["TCP","A transport protocol that establishes a connection using a SYN, SYN-ACK and ACK handshake."],
+ ["UDP","A connectionless transport protocol. It sends datagrams without a TCP-style handshake."],
+ ["ARP","Address Resolution Protocol. It discovers the MAC address associated with a local IPv4 next hop."],
+ ["DNS","Domain Name System. It maps human-readable names to IP addresses; PacketFlow scripts a sample DNS exchange."],
+ ["HTTP","A web protocol. The demo scripts a TCP handshake, an HTTP GET request and a response."],
+ ["Port","A number identifying an application endpoint on a device. Common examples: HTTP 80 and DNS 53."],
+ ["TTL","Time To Live. Routers decrement this value as a packet is forwarded; the packet is dropped when it reaches zero."],
+ ["Routing table","A list of destination networks and next hops used by a router or host to decide where to send traffic."],
+ ["Static route","A route manually entered by the user, with a destination network and next-hop IP address."],
+ ["Default route","A fallback route used when no more-specific route matches. It is written 0.0.0.0/0."],
+ ["CIDR /24","Slash notation for a network prefix length. /24 means the first 24 bits identify the network."],
+ ["Next hop","The neighboring router or device to which a packet is sent on its way to the final destination."],
+ ["Dijkstra path","The shortest available cable path found by the path-finding algorithm. It is not a replacement for IP routing."],
+ ["Packet loss","The share of completed simulated packets that were dropped instead of delivered."],
+ ["Throughput","An estimated data rate calculated from simulated bytes and simulation time, not real network bandwidth."]
+ ];
+ const shade=document.createElement('div');shade.id='pf-help-shade';
+ const panel=document.createElement('aside');panel.id='pf-help';panel.setAttribute('aria-label','PacketFlow learning guide');
+ panel.innerHTML='<div class="pf-help-head"><h2>PacketFlow guide</h2><button type="button" id="pf-help-close" aria-label="Close help">Close ✕</button></div><p class="m">Plain-language explanations of the tools, network devices and technical terms.</p><div id="pf-current-help"></div><div class="pf-help-section"><h3>Glossary</h3><p>Search a term to see what it means.</p><input class="pf-help-search" id="pf-help-search" type="search" placeholder="Search: gateway, TTL, TCP…"><div class="pf-glossary" id="pf-glossary"></div></div><div class="pf-help-section"><h3>Important limitation</h3><p>PacketFlow is an educational network simulator. It does not capture real traffic, send packets over your network, measure your actual internet speed or configure your physical devices.</p></div>';
+ shade.append(panel);document.body.append(shade);
+ const header=document.querySelector('header'),btn=document.createElement('button');btn.type='button';btn.className='help-trigger';btn.textContent='? Help & meanings';btn.id='pf-help-open';header.append(btn);
+ const open=()=>{shade.classList.add('open');shade.setAttribute('aria-hidden','false');document.getElementById('pf-help-close').focus();};
+ const close=()=>{shade.classList.remove('open');shade.setAttribute('aria-hidden','true');btn.focus();};
+ btn.addEventListener('click',open);document.getElementById('pf-help-close').addEventListener('click',close);
+ shade.addEventListener('click',e=>{if(e.target===shade)close()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&shade.classList.contains('open'))close()});
+ const glossary=document.getElementById('pf-glossary'),search=document.getElementById('pf-help-search');
+ function drawTerms(q=''){glossary.innerHTML='';const found=terms.filter(([a,b])=>(a+' '+b).toLowerCase().includes(q.toLowerCase()));found.forEach(([a,b])=>{const item=document.createElement('div');item.className='pf-term';const title=document.createElement('b'),desc=document.createElement('span');title.textContent=a;desc.textContent=b;item.append(title,desc);glossary.append(item)});if(!found.length)glossary.textContent='No matching term. Try a shorter search.'}
+ search.addEventListener('input',()=>drawTerms(search.value));drawTerms();
+ window.PacketFlowHelp={open};
+ const originalRender=window.render;
+ // render() is a top-level function in this classic script; add page guidance after each navigation.
+ const addPageGuide=()=>{
+   const id=(location.hash||'#dashboard').slice(1),data=pageHelp[id];if(!data)return;
+   document.querySelector('.page-intro')?.remove();
+   const intro=document.createElement('div');intro.className='page-intro';
+   const copy=document.createElement('div'),strong=document.createElement('strong'),p=document.createElement('p'),learn=document.createElement('button');
+   strong.textContent=data[0];p.textContent=data[1];copy.append(strong,p);learn.className='help-trigger';learn.textContent='Explain terms';learn.addEventListener('click',open);intro.append(copy,learn);
+   const target=document.getElementById('view');if(target)target.prepend(intro);
+ };
+ // Observe page changes and refreshes without altering simulation logic.
+ const target=document.getElementById('view');
+ if(target){new MutationObserver(()=>{if(!target.querySelector('.page-intro'))addPageGuide()}).observe(target,{childList:true});}
+ addPageGuide();
+})();
