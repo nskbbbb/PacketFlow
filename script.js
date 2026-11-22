@@ -293,4 +293,35 @@ if(typeof document!='undefined'){
  const target=document.getElementById('view');
  if(target){new MutationObserver(()=>{if(!target.querySelector('.page-intro'))addPageGuide()}).observe(target,{childList:true});}
  addPageGuide();
+ // Add plain-language walkthroughs that describe the actual simulation sequence.
+ const makeExplainer=(title,lead,steps)=>{
+   const box=document.createElement('section');box.className='page-explainer';
+   const h3=document.createElement('h3');h3.textContent=title;box.append(h3);
+   const p=document.createElement('p');p.textContent=lead;box.append(p);
+   const ol=document.createElement('ol');
+   steps.forEach((s,i)=>{const li=document.createElement('li');const tag=document.createElement('span');tag.className='step-tag';tag.textContent='STEP '+(i+1);li.append(tag,document.createTextNode(s));ol.append(li)});
+   box.append(ol);return box;
+ };
+ const oldDashboard=R.dashboard;
+ R.dashboard=()=>{oldDashboard();const target=document.getElementById('view');if(target)target.append(makeExplainer('What is happening in PacketFlow?','PacketFlow is a safe, browser-based model of a small computer network. The counters and diagrams change as you create devices and run simulated packets.',[
+ 'Build a topology: PCs, switches, routers, firewalls and servers are the devices in the diagram. Cables show which devices can communicate directly.',
+ 'Configure addresses: each network interface can have an IPv4 address and subnet mask. A PC or server uses its default gateway to reach another subnet.',
+ 'Start a test: choose a source, destination and protocol. PacketFlow creates one or more example packets, such as an ICMP ping request or a TCP connection handshake.',
+ 'Find the next hop: the sender checks its routing table. The most-specific matching route wins. The next-hop address must be reachable on a connected network.',
+ 'Move across the topology: switches provide the cable path within a local segment. Routers forward traffic between IP networks. Each cable adds its configured latency.',
+ 'Apply network rules: firewalls can allow or deny matching traffic. Routers reduce the packet Time To Live (TTL); a packet with expired TTL is dropped.',
+ 'Finish and inspect: a packet is marked delivered if it reaches the destination, or dropped with a reason if forwarding fails. Open Packet Analyzer to inspect its fields and path.',
+ 'Read the metrics: packet loss, latency and throughput are calculated from this simulation only. They are not measurements of your real internet connection.'
+]));};
+ const oldConsole=R.console;
+ R.console=()=>{oldConsole();const target=document.getElementById('view');if(target)target.append(makeExplainer('What happens after you press “Send test packet”?','The console advances a small event queue. A protocol exchange may create several packets, and each packet makes its own trip through the network.',[
+ 'Packet creation: PacketFlow assigns source and destination IP addresses, protocol details, ports (when relevant), size and a starting TTL.',
+ 'Route decision: the sending device checks whether the destination is local or needs a gateway, then selects a matching route.',
+ 'Address resolution: the simulator checks whether the next-hop IP belongs to a configured interface so it can determine the destination MAC address for the local Ethernet frame.',
+ 'Cable traversal: the packet follows a working link path. A disconnected cable or unreachable next hop causes a drop.',
+ 'Forwarding: routers and firewalls inspect the packet as it arrives. Routers select another route; firewall rules may block it; TTL decreases at each forwarding router/firewall.',
+ 'Delivery or failure: reaching the destination marks the packet delivered. Otherwise the event log records a specific reason, such as no route, link down, firewall block or TTL expired.',
+ 'Protocol reply: ping, DNS, TCP and HTTP demonstrations can generate reply or follow-up packets. These travel back through the network as separate simulated packets.'
+]));};
+
 })();
